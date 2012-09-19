@@ -1,6 +1,4 @@
-Keepagent
+KeepAgent
 =
 
-虽然有了goagent，不过我还是更新这个项目吧。
-
-
+GoAgent's code is dirty and mess, so let's KeepAgent.
