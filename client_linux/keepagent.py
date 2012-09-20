@@ -4,15 +4,13 @@
 import SocketServer
 import BaseHTTPServer
 import logging
-import yaml
 import json
 import urllib2
 import socket
 
 import lib
+import config
 
-config = yaml.load(open('config.yaml')) # config is a `dict`
-config = lib.JSDict(config)  
 
 if lib.isDev:
     gaeServer = 'http://localhost:8080/'
