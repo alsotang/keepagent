@@ -12,11 +12,18 @@ import socket
 import lib
 
 config = yaml.load(open('config.yaml')) # config is a `dict`
-config = lib.JSDict(config)  # turn `dict` to JavaScript-style object
+config = lib.JSDict(config)  
 
+if lib.isDev:
+    gaeServer = 'http://localhost:8080/'
+else:
+    gaeServer = ('http://%s.appspot.com/' % config.appid)
+    urllib2.install_opener( lib.get_g_opener() )
 
-# TODO: connect to Google BeiJing
-gaeServer = ('http://%s.appsp0t.com/' % config.appid if not config.isDev else 'http://localhost:8080/')
+logging.basicConfig(level=(logging.DEBUG if lib.isDev else logging.INFO), 
+                    format='%(levelname)s - - %(asctime)s %(message)s',
+                    datefmt='[%b %d %H:%M:%S]'
+                   )
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -46,6 +53,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         res_content = ''
 
         logging.debug('req_payload: %s' % (req_payload))
+        # 向GAE获取的过程
         try: # TODO: add deadline; try 3 times
             res = urllib2.urlopen(gaeServer, lib.dumpDict(req_payload))
 
@@ -59,6 +67,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         except urllib2.URLError, e: # TODO: add more error handlers
             logging.error(e)
         
+        # 返回数据给浏览器的过程
         try:
             self.send_response(res_status_code) # 200 or or 301 or 404
             for k, v in res_headers.iteritems():
@@ -82,10 +91,15 @@ def init_info():
     return (
         '#' * 50 +
 '''
-        KeepAgent: %s
-        Listening Adress: %s
+        KeepAgent version: %s
+        Protocol: %s
+        Listening Adress: localhost:%s
         Appid: %s
-''' % (config.version, 'localhost:7808', config.appid) + 
+''' % (lib.version,
+       lib.protocol,
+       config.listen_port, 
+       config.appid
+      ) + 
         '#' * 50
         )
 
@@ -93,13 +107,9 @@ def init_info():
 def main():
     print init_info() 
 
-    logging.basicConfig(level=(logging.DEBUG if config.isDev else logging.INFO), 
-                        format='%(levelname)s - - %(asctime)s %(message)s',
-                        datefmt='[%b %d %H:%M:%S]'
-                       )
-    server_address = ('', 7808)
-
+    server_address = ('', config.listen_port)
     httpd = LocalProxyServer(server_address, LocalProxyHandler)
+    print 'server is running...'
     httpd.serve_forever()
 
     

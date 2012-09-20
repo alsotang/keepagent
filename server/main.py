@@ -1,8 +1,6 @@
 #! /usr/bin/env python
 # coding=utf-8
 
-__version__ = 'v0.2.0'
-
 import webapp2
 import logging
 import os
@@ -21,7 +19,8 @@ logging.basicConfig(level=logging.INFO if not isDev else logging.DEBUG, format='
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
-        text = 'This webpage is keepagent server %s.' % __version__
+        text = '''<p>This version of keepagent server use <strong>%s</strong> protocol.</p>
+        <p>请检查您的客户端是否使用了同一协议。</p>''' % lib.protocol
 
         self.response.headers['Content-Type'] = 'text/html; charset=UTF-8'
         self.response.write(text)
