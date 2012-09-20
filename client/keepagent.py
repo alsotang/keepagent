@@ -7,51 +7,69 @@ import logging
 import yaml
 import json
 import urllib2
-import zlib
-import base64
+import socket
 
-from lib import JSDict
+import lib
 
-config = yaml.load(open('config.yaml'))
-config = JSDict(config)  
+config = yaml.load(open('config.yaml')) # config is a `dict`
+config = lib.JSDict(config)  # turn `dict` to JavaScript-style object
 
 
-gaeServer = ('http://%s.appsp0t.com/' % config.appid if not config.isDebug else 'http://localhost:8080/')
+# TODO: connect to Google BeiJing
+gaeServer = ('http://%s.appsp0t.com/' % config.appid if not config.isDev else 'http://localhost:8080/')
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     # refer to: https://developers.google.com/appengine/docs/python/urlfetch/overview
-    forbidden_headers = ('Content-Length', 'Host', 'Vary', 
-                         'Via', 'X-Forwarded-For', 'X-ProxyUser-IP')
+    forbidden_headers = ('host', 'vary', # content-length, 
+                         'via', 'x-forwarded-for', 'x-proxyuser-iP')
     
     def do_GET(self):
-        headers = dict(self.headers)
-        headers = dict((h, v) for h, v in headers.iteritems() if h not in self.forbidden_headers)
-        payload_len = int(headers.get('Content-Length', 0))
-        payload = {
-            'path': self.path,
-            'payload': self.rfile.read(payload_len), # TODO: treat payload as string. It will throw err if binary.
-            'command': self.command,
-            'headers': json.dumps(headers),
+        # headers is a dict-like object, it doesn't have `iteritems` method.
+        req_headers = dict(self.headers)  # dict
+        req_headers = dict((h, v) for h, v in req_headers.iteritems() if h.lower() not in self.forbidden_headers)
+
+        logging.debug('req_headers: %s' % str(req_headers))
+        req_body_len = int(req_headers.get('content-length', 0))
+        req_body = self.rfile.read(req_body_len) # bin or str
+        logging.debug('req_body: %s', req_body) 
+
+        req_payload = {
+            'command': self.command, # str
+            'path': self.path, # str
+            'headers': json.dumps(req_headers), # json
+            'payload': lib.btoa(req_body), # str
         }
-        payload = json.dumps(payload)
 
-        #logging.debug('payload: ', payload)
+        res_status_code = 500
+        res_headers = {}
+        res_content = ''
 
-        try:
-            res = urllib2.urlopen(gaeServer, zlib.compress(payload))
-            data = zlib.decompress(res.read())
-            data = JSDict(json.loads(data)) # TODO: encode and decode
-        except urllib2.URLError, e:
-            data = ''
-            data.status_code = 404
+        logging.debug('req_payload: %s' % (req_payload))
+        try: # TODO: add deadline; try 3 times
+            res = urllib2.urlopen(gaeServer, lib.dumpDict(req_payload))
+
+            result = lib.loadDict( res.read() )
+            logging.debug('result: %s' % result)
+
+            res_status_code = result.status_code
+            res_headers = json.loads(result.headers)
+            res_content = lib.atob(result.content)
+
+        except urllib2.URLError, e: # TODO: add more error handlers
             logging.error(e)
         
-        self.send_response(data.status_code)
-        for k, v in data.headers.iteritems():
-            self.send_header(k, v)
-        self.end_headers()
-        self.wfile.write(base64.decodestring(data.content))
+        try:
+            self.send_response(res_status_code) # 200 or or 301 or 404
+            for k, v in res_headers.iteritems():
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(res_content)
+        except socket.error, e:
+            logging.error(e)
+
+    def do_POST(self):
+        return self.do_GET()
 
 
 
@@ -62,24 +80,24 @@ class LocalProxyServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
 
 def init_info():
     return (
-        '#' * 20 +
+        '#' * 50 +
 '''
-KeepAgent: %s
-Listening Adress: %s
-Appid: %s
-''' % (config.version, 'localhost:8964', config.appid) + 
-    '#' * 20
+        KeepAgent: %s
+        Listening Adress: %s
+        Appid: %s
+''' % (config.version, 'localhost:7808', config.appid) + 
+        '#' * 50
         )
 
 
 def main():
     print init_info() 
 
-    logging.basicConfig(level=(logging.DEBUG if config.isDebug else logging.INFO), 
+    logging.basicConfig(level=(logging.DEBUG if config.isDev else logging.INFO), 
                         format='%(levelname)s - - %(asctime)s %(message)s',
                         datefmt='[%b %d %H:%M:%S]'
                        )
-    server_address = ('', 8964)
+    server_address = ('', 7808)
 
     httpd = LocalProxyServer(server_address, LocalProxyHandler)
     httpd.serve_forever()
