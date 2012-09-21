@@ -10,7 +10,7 @@ from google.appengine.api import urlfetch
 
 import lib
 
-try: # detect it's in local or on GAE
+try: # detect it's on local or GAE
     isDev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
 except:
     isDev = False
@@ -31,11 +31,21 @@ class MainPage(webapp2.RequestHandler):
         logging.debug('request_body: %s', req_body)
 
         method = getattr(urlfetch, req_body.command)
-        res = urlfetch.fetch(req_body.path,
-                              lib.atob(req_body.payload),
-                              method,
-                              json.loads(req_body.headers)
-                             )
+
+        # 如超时则自动重试3次，3次失败后，GAE会抛错并返回给client 500错误。
+        for dl in lib.deadlineRetry:
+            try:
+                res = urlfetch.fetch(req_body.path,
+                                      lib.atob(req_body.payload),
+                                      method,
+                                      json.loads(req_body.headers),
+                                     deadline=dl,
+                                     )
+            except urlfetch.DownloadError, e:
+                logging.error(e)
+            else:
+                break #没有抛出任何异常则跳出循环
+
         result = {
             'status_code': res.status_code, # int
             # TODO: If there are multiple headers with the same name, their values will be joined into a single comma-separated string. If the values already contained commas (for example, Set-Cookie headers), you may want to use header_msg.get_headers(header_name) to retrieve a list of values instead.

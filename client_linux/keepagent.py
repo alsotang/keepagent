@@ -34,36 +34,46 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         req_headers = dict(self.headers)  # dict
         req_headers = dict((h, v) for h, v in req_headers.iteritems() if h.lower() not in self.forbidden_headers)
 
-        logging.debug('req_headers: %s' % str(req_headers))
+        #logging.debug('req_headers: %s' % str(req_headers))
         req_body_len = int(req_headers.get('content-length', 0))
         req_body = self.rfile.read(req_body_len) # bin or str
-        logging.debug('req_body: %s', req_body) 
+        #logging.debug('req_body: %s', req_body) 
 
-        req_payload = {
+        payload = {
             'command': self.command, # str
             'path': self.path, # str
             'headers': json.dumps(req_headers), # json
             'payload': lib.btoa(req_body), # str
         }
 
+        logging.debug('payload: %s' % (payload))
+
+
+        # 初始化response的3个主要信息
         res_status_code = 500
         res_headers = {}
         res_content = ''
 
-        logging.debug('req_payload: %s' % (req_payload))
         # 向GAE获取的过程
-        try: # TODO: add deadline; try 3 times
-            res = urllib2.urlopen(gaeServer, lib.dumpDict(req_payload))
+        for i in range(3):
+            try:
+                res = urllib2.urlopen(gaeServer, lib.dumpDict(payload), lib.deadlineRetry[i])
+            except (urllib2.URLError, socket.timeout) as e: 
+                # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
+                urllib2.install_opener( lib.get_g_opener() )
+                logging.error(e)
+                continue
 
-            result = lib.loadDict( res.read() )
-            logging.debug('result: %s' % result)
+            if res.code != 500:  # 如果打开GAE没发生错误
+                result = lib.loadDict( res.read() )
+                logging.debug('result: %s' % result)
 
-            res_status_code = result.status_code
-            res_headers = json.loads(result.headers)
-            res_content = lib.atob(result.content)
+                res_status_code = result.status_code
+                res_headers = json.loads(result.headers)
+                res_content = lib.atob(result.content)
+                break
 
-        except urllib2.URLError, e: # TODO: add more error handlers
-            logging.error(e)
+
         
         # 返回数据给浏览器的过程
         try:
@@ -73,6 +83,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(res_content)
         except socket.error, e:
+            # 打开了网页后，在数据到达浏览器之前又把网页关闭了而导致的错误。
             logging.error(e)
 
     def do_POST(self):
@@ -82,7 +93,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 class LocalProxyServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer): 
     daemon_threads = True
-    allow_reuse_address = True
     
 
 def init_info():

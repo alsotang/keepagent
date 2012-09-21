@@ -11,10 +11,12 @@ import random
 #### for common ####
 ###########################
 
-version = 'v0.3.0'
+version = 'v0.4.0'
 
 isDev = 0
 protocol = 'keepagent v1'
+
+deadlineRetry = (2, 2, 5)
 
 class JSDict(dict):
     '''convert a `dict` to a JavaScript-style object'''
@@ -64,17 +66,20 @@ def get_g_opener():
     # 得到google.cn的ip集合: `googlecn_ips`
     google_cn_host = 'www.google.cn'
     results = socket.getaddrinfo(google_cn_host, None)
-    googlecn_ips = []
+    googlecn_ips = set() # 不要重复的ip
     for i in results:
         ip = i[4][0]
         if ':' not in ip:
-            googlecn_ips.append(ip)
+            googlecn_ips.add(ip)
+    googlecn_ips = list(googlecn_ips)
 
-    proxy_handler = urllib2.ProxyHandler(
-        {'http': random.choice(googlecn_ips)}
-        )
-    g_opener = urllib2.build_opener(proxy_handler)
-    return g_opener
+    def _producer(ips):
+        proxy_handler = urllib2.ProxyHandler(
+            {'http': random.choice(googlecn_ips)}
+            )
+        g_opener = urllib2.build_opener(proxy_handler)
+        return g_opener
+    return _producer(googlecn_ips)
 
     
 
