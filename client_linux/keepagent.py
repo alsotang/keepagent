@@ -11,18 +11,6 @@ import socket
 import lib
 import config
 
-
-if lib.isDev:
-    gaeServer = 'http://localhost:8080/'
-else:
-    gaeServer = ('http://%s.appspot.com/' % config.appid)
-    urllib2.install_opener( lib.get_g_opener() )
-
-logging.basicConfig(level=(logging.DEBUG if lib.isDev else logging.INFO), 
-                    format='%(levelname)s - - %(asctime)s %(message)s',
-                    datefmt='[%b %d %H:%M:%S]'
-                   )
-
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     # refer to: https://developers.google.com/appengine/docs/python/urlfetch/overview
@@ -60,11 +48,11 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 res = urllib2.urlopen(gaeServer, lib.dumpDict(payload), lib.deadlineRetry[i])
             except (urllib2.URLError, socket.timeout) as e: 
                 # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
-                urllib2.install_opener( lib.get_g_opener() )
+                urllib2.install_opener( get_g_opener('cn') )
                 logging.error(e)
                 continue
 
-            if res.code != 500:  # 如果打开GAE没发生错误
+            if res.code == 200:  # 如果打开GAE没发生错误
                 result = lib.loadDict( res.read() )
                 logging.debug('result: %s' % result)
 
@@ -111,6 +99,18 @@ def init_info():
         '#' * 50
         )
 
+get_g_opener = lib.init_g_opener()
+
+if lib.isDev:
+    gaeServer = 'http://localhost:8080/'
+else:
+    gaeServer = ('http://%s.appspot.com/' % config.appid)
+    urllib2.install_opener( get_g_opener('cn') )
+
+logging.basicConfig(level=(logging.DEBUG if lib.isDev else logging.INFO), 
+                    format='%(levelname)s - - %(asctime)s %(message)s',
+                    datefmt='[%b %d %H:%M:%S]'
+                   )
 
 def main():
     print init_info() 

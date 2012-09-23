@@ -59,27 +59,40 @@ def atob(b):
 #### for client only ####
 ###########################
 
-# produce a urllib2 opener use googlecn to proxy
-def get_g_opener():
+# 初始化并返回一个 get_g_opener 闭包函数
+def init_g_opener():
     import socket
 
     # 得到google.cn的ip集合: `googlecn_ips`
-    google_cn_host = 'www.google.cn'
-    results = socket.getaddrinfo(google_cn_host, None)
-    googlecn_ips = set() # 不要重复的ip
-    for i in results:
-        ip = i[4][0]
-        if ':' not in ip:
-            googlecn_ips.add(ip)
-    googlecn_ips = list(googlecn_ips)
+    google_cn_host = 'google.cn'
+    google_hk_host = 'google.com.hk'
 
-    def _producer(ips):
+    def get_ips(host):
+        '''由域名得到相应的ip列表'''
+
+        results = socket.getaddrinfo(host, None)
+        ips = set() # 不要重复的ip
+        for i in results:
+            ip = i[4][0]
+            if ':' not in ip:
+                ips.add(ip)
+        ips = list(ips)
+        return ips
+
+    google_cn_ips = get_ips(google_cn_host)
+    google_hk_ips = get_ips(google_hk_host)
+
+    def get_g_opener(loc = 'cn'):
+        '''返回一个使用google_cn或者google_hk作为代理的urllib2 opener'''
+
         proxy_handler = urllib2.ProxyHandler(
-            {'http': random.choice(googlecn_ips)}
+            # 从google_cn_ips 或者 google_hk_ips 随机选择一个IP出来
+            {'http': random.choice( (google_cn_ips if loc == 'cn' else google_hk_ips) )}
             )
         g_opener = urllib2.build_opener(proxy_handler)
         return g_opener
-    return _producer(googlecn_ips)
+
+    return get_g_opener
 
     
 
