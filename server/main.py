@@ -35,11 +35,13 @@ class MainPage(webapp2.RequestHandler):
         # 如超时则自动重试3次，3次失败后，GAE会抛错并返回给client 500错误。
         for dl in lib.deadlineRetry:
             try:
-                res = urlfetch.fetch(req_body.path,
-                                      lib.atob(req_body.payload),
-                                      method,
-                                      json.loads(req_body.headers),
+                res = urlfetch.fetch(url=req_body.path,
+                                     payload=lib.atob(req_body.payload),
+                                     method=method,
+                                     headers=json.loads(req_body.headers),
+                                     follow_redirects=False,
                                      deadline=dl,
+                                     validate_certificate=True,
                                      )
             except urlfetch.DownloadError, e:
                 logging.error(e)
