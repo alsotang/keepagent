@@ -1,15 +1,19 @@
 #! /usr/bin/env python
 # coding=utf-8
 
+# Inspired by and based on [GoAgent](https://code.google.com/p/goagent/).
+
 import SocketServer
 import BaseHTTPServer
 import logging
 import json
 import urllib2
 import socket
+import ssl
 
 import lib
 import config
+from certutil import CertUtil
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -18,14 +22,16 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                          'via', 'x-forwarded-for', 'x-proxyuser-iP')
     
     def do_GET(self):
+
         # headers is a dict-like object, it doesn't have `iteritems` method.
         req_headers = dict(self.headers)  # dict
         req_headers = dict((h, v) for h, v in req_headers.iteritems() if h.lower() not in self.forbidden_headers)
 
-        #logging.debug('req_headers: %s' % str(req_headers))
+        self.log_request(200)
+        logging.info('req_headers: %s' % req_headers)
+
         req_body_len = int(req_headers.get('content-length', 0))
         req_body = self.rfile.read(req_body_len) # bin or str
-        #logging.debug('req_body: %s', req_body) 
 
         payload = {
             'command': self.command, # str
@@ -34,7 +40,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             'payload': lib.btoa(req_body), # str
         }
 
-        logging.debug('payload: %s' % (payload))
 
 
         # 初始化response的3个主要信息
@@ -54,7 +59,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
             if res.code == 200:  # 如果打开GAE没发生错误
                 result = lib.loadDict( res.read() )
-                logging.debug('result: %s' % result)
 
                 res_status_code = result.status_code
                 res_headers = json.loads(result.headers)
@@ -76,6 +80,44 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_POST(self):
         return self.do_GET()
+
+
+    def do_CONNECT(self): 
+        host, _, port = self.path.rpartition(':')
+        
+        hostCert, hostKey = CertUtil.getCertificate(host)
+
+        self.log_request(200)
+        self.connection.sendall('%s 200 OK\r\n\r\n' % self.protocol_version)
+
+        self._oripath = self.path
+
+        logging.info(self.path)
+        
+        self.connection = ssl.wrap_socket(self.connection, hostKey, hostCert, True)
+        self.rfile = self.connection.makefile('rb', self.rbufsize)
+        self.wfile = self.connection.makefile('wb', self.wbufsize)
+        self.raw_requestline = self.rfile.readline(8192)
+
+        self.parse_request()
+
+        logging.info(dict(self.headers))
+        #if 'host' in self.headers:
+            #self.path = 'https://%s:%s%s' % (self.headers['Host'].partition(':')[0], port or 443, self.path)
+        #else:
+        if self.path[0] == '/':
+            if 'Host' in self.headers:
+                self.path = 'https://%s:%s%s' % (self.headers['Host'].partition(':')[0], port or 443, self.path)
+            else:
+                self.path = 'https://%s%s' % (self._oripath, self.path)
+            self.requestline = '%s %s %s' % (self.command, self.path, self.protocol_version)
+
+        logging.info(self.path)
+
+        self.do_GET()
+        
+        
+
 
 
 
@@ -114,6 +156,8 @@ logging.basicConfig(level=(logging.DEBUG if lib.isDev else logging.INFO),
 
 def main():
     print init_info() 
+    
+    CertUtil.init()
 
     server_address = ('', config.listen_port)
     httpd = LocalProxyServer(server_address, LocalProxyHandler)

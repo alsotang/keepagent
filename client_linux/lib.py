@@ -6,6 +6,7 @@ import json
 import zlib
 import urllib2
 import random
+import os
 
 ###########################
 #### for common ####
@@ -17,6 +18,8 @@ isDev = 0
 protocol = 'keepagent v1'
 
 deadlineRetry = (2, 2, 5)
+
+basedir = os.path.dirname(__file__)
 
 class JSDict(dict):
     '''convert a `dict` to a JavaScript-style object'''
@@ -53,13 +56,20 @@ def atob(b):
 
     return base64.decodestring(b)
 
-
-
 ###########################
 #### for client only ####
 ###########################
 
-# 初始化并返回一个 get_g_opener 闭包函数
+def readBinFile(filename):
+    with open(filename, 'rb') as f:
+        content = f.read()
+    return content
+
+def writeBinFile(filename, content):
+    with open(filename, 'wb') as f:
+        f.write(content)
+
+# 初始化并返回一个 get_g_opener 闭包函数，调用该函数会随机返回一个google的ip
 def init_g_opener():
     import socket
 
