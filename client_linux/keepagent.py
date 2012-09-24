@@ -25,6 +25,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # headers is a dict-like object, it doesn't have `iteritems` method.
         req_headers = dict(self.headers)  # dict
+        #req_headers['proxy-connection'] = 'close'  
         req_headers = dict((h, v) for h, v in req_headers.iteritems() if h.lower() not in self.forbidden_headers)
 
         self.log_request(200)
@@ -70,6 +71,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # 返回数据给浏览器的过程
         try:
             self.send_response(res_status_code) # 200 or or 301 or 404
+
+            res_headers['connection'] = 'close' # 这样不会对速度造成影响，反而能使很多的请求表现得更为准确。
             for k, v in res_headers.iteritems():
                 self.send_header(k, v)
             self.end_headers()
@@ -92,7 +95,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self._oripath = self.path
 
-        logging.info(self.path)
         
         self.connection = ssl.wrap_socket(self.connection, hostKey, hostCert, True)
         self.rfile = self.connection.makefile('rb', self.rbufsize)
@@ -101,10 +103,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self.parse_request()
 
-        logging.info(dict(self.headers))
-        #if 'host' in self.headers:
-            #self.path = 'https://%s:%s%s' % (self.headers['Host'].partition(':')[0], port or 443, self.path)
-        #else:
         if self.path[0] == '/':
             if 'Host' in self.headers:
                 self.path = 'https://%s:%s%s' % (self.headers['Host'].partition(':')[0], port or 443, self.path)
@@ -112,7 +110,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.path = 'https://%s%s' % (self._oripath, self.path)
             self.requestline = '%s %s %s' % (self.command, self.path, self.protocol_version)
 
-        logging.info(self.path)
 
         self.do_GET()
         

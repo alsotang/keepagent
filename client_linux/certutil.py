@@ -45,8 +45,8 @@ class CertUtil(object):
     @classmethod
     def createCert(cls, host, digest='sha1'):
         cert = crypto.X509() # 得到一个X509对象
-        cert.set_version(2)
-        cert.set_serial_number( int(time.time()) ) # 序号，不重复即可。
+        cert.set_version(0)
+        cert.set_serial_number( int(time.time() * 10000000) ) # 序号，不重复即可。
 
         #证书有效与过期时间
         cert.gmtime_adj_notBefore(0)
