@@ -91,6 +91,8 @@ class CertUtil(object):
         cls.CA = (cls.loadPEM(cacert, 0), cls.loadPEM(cakey, 1))
 
 if __name__ == '__main__':
+    # 不要随便运行这段代码，运行后将生成新的CA相关文件，需要把浏览器中的CA文件删除后
+    # 重新导入新生成的。
     CASubjects = crypto.X509Name(CertUtil.CERT_SUBJECTS)
     CASubjects.OU = 'KeepAgent Root'
     CASubjects.O = 'KeepAgent'
@@ -98,6 +100,8 @@ if __name__ == '__main__':
 
 
     def makeCA():
+        '''得到一对新的CA.crt与CA.key'''
+
         cert = crypto.X509()
         cert.set_version(0)
         cert.set_serial_number(0)

@@ -12,9 +12,8 @@ import os
 #### for common ####
 ###########################
 
-version = 'v0.4.0'
+version = 'v1.0.0'
 
-isDev = 0
 protocol = 'keepagent v1'
 
 deadlineRetry = (2, 2, 5)

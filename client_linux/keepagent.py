@@ -23,13 +23,11 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     
     def do_GET(self):
 
-        # headers is a dict-like object, it doesn't have `iteritems` method.
+        # headers is a dict-like object, it doesn't have `iteritems` method, so convert it to `dict`
         req_headers = dict(self.headers)  # dict
-        #req_headers['proxy-connection'] = 'close'  
         req_headers = dict((h, v) for h, v in req_headers.iteritems() if h.lower() not in self.forbidden_headers)
-
-        self.log_request(200)
-        logging.info('req_headers: %s' % req_headers)
+        req_headers['connection'] = 'close'
+        
 
         req_body_len = int(req_headers.get('content-length', 0))
         req_body = self.rfile.read(req_body_len) # bin or str
@@ -40,7 +38,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             'headers': json.dumps(req_headers), # json
             'payload': lib.btoa(req_body), # str
         }
-
 
 
         # 初始化response的3个主要信息
@@ -54,7 +51,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 res = urllib2.urlopen(gaeServer, lib.dumpDict(payload), lib.deadlineRetry[i])
             except (urllib2.URLError, socket.timeout) as e: 
                 # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
-                urllib2.install_opener( get_g_opener('cn') )
+                urllib2.install_opener( get_g_opener('cn') ) # TODO: hk or cn, http or https
                 logging.error(e)
                 continue
 
@@ -90,7 +87,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         
         hostCert, hostKey = CertUtil.getCertificate(host)
 
-        self.log_request(200)
         self.connection.sendall('%s 200 OK\r\n\r\n' % self.protocol_version)
 
         self._oripath = self.path
@@ -103,13 +99,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self.parse_request()
 
-        if self.path[0] == '/':
-            if 'Host' in self.headers:
-                self.path = 'https://%s:%s%s' % (self.headers['Host'].partition(':')[0], port or 443, self.path)
-            else:
-                self.path = 'https://%s%s' % (self._oripath, self.path)
-            self.requestline = '%s %s %s' % (self.command, self.path, self.protocol_version)
-
+        self.path = 'https://%s%s' % (self._oripath, self.path)
 
         self.do_GET()
         
@@ -140,16 +130,9 @@ def init_info():
 
 get_g_opener = lib.init_g_opener()
 
-if lib.isDev:
-    gaeServer = 'http://localhost:8080/'
-else:
-    gaeServer = ('http://%s.appspot.com/' % config.appid)
-    urllib2.install_opener( get_g_opener('cn') )
+gaeServer = ('http://%s.appspot.com/' % config.appid)
+urllib2.install_opener( get_g_opener('cn') )
 
-logging.basicConfig(level=(logging.DEBUG if lib.isDev else logging.INFO), 
-                    format='%(levelname)s - - %(asctime)s %(message)s',
-                    datefmt='[%b %d %H:%M:%S]'
-                   )
 
 def main():
     print init_info() 

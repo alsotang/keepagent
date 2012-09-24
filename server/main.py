@@ -3,19 +3,11 @@
 
 import webapp2
 import logging
-import os
 import json
 
 from google.appengine.api import urlfetch
 
 import lib
-
-try: # detect it's on local or GAE
-    isDev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
-except:
-    isDev = False
-
-logging.basicConfig(level=logging.INFO if not isDev else logging.DEBUG, format='%(levelname)s - - %(asctime)s %(message)s', datefmt='[%b %d %H:%M:%S]')
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
@@ -27,8 +19,6 @@ class MainPage(webapp2.RequestHandler):
     
     def post(self):
         req_body = lib.loadDict(self.request.body)
-
-        logging.debug('request_body: %s', req_body)
 
         method = getattr(urlfetch, req_body.command)
 
@@ -44,7 +34,7 @@ class MainPage(webapp2.RequestHandler):
                                      validate_certificate=True,
                                      )
             except urlfetch.DownloadError, e:
-                logging.error(e)
+                logging.error(u'下载错误: %s' % e)
             else:
                 break #没有抛出任何异常则跳出循环
 
@@ -55,12 +45,8 @@ class MainPage(webapp2.RequestHandler):
             'content': lib.btoa(res.content), # str
         }
 
-        logging.debug(result['status_code'])
-        logging.debug(type(result['headers']))
-        logging.debug(len(result['content']))
-
         result = lib.dumpDict(result)
         
         self.response.write(result)
 
-app = webapp2.WSGIApplication([('/.*', MainPage)], debug = isDev)
+app = webapp2.WSGIApplication([('/.*', MainPage)])
