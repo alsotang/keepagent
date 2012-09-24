@@ -16,7 +16,7 @@ version = 'v1.0.0'
 
 protocol = 'keepagent v1'
 
-deadlineRetry = (2, 2, 5)
+deadlineRetry = (2, 3, 5)
 
 basedir = os.path.dirname(__file__)
 
