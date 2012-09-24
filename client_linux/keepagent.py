@@ -49,7 +49,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 res = urllib2.urlopen(gaeServer, lib.dumpDict(payload), lib.deadlineRetry[i])
             except (urllib2.URLError, socket.timeout) as e: 
                 # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
-                urllib2.install_opener( get_g_opener('cn') ) # TODO: hk or cn, http or https
+                urllib2.install_opener( get_g_opener() ) # TODO: hk or cn, http or https
                 logging.error(e)
                 continue
 
@@ -129,7 +129,7 @@ def init_info():
 get_g_opener = lib.init_g_opener()
 
 gaeServer = ('http://%s.appspot.com/' % config.appid)
-urllib2.install_opener( get_g_opener('cn') )
+urllib2.install_opener( get_g_opener() )
 
 
 def main():

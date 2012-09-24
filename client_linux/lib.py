@@ -73,10 +73,9 @@ def init_g_opener():
     import socket
 
     # 得到google.cn的ip集合: `googlecn_ips`
-    google_cn_host = 'google.cn'
-    google_hk_host = 'google.com.hk'
+    google_cn_host = 'g.cn'
 
-    def get_ips(host):
+    def get_g_ips(host):
         '''由域名得到相应的ip列表'''
 
         results = socket.getaddrinfo(host, None)
@@ -88,15 +87,14 @@ def init_g_opener():
         ips = list(ips)
         return ips
 
-    google_cn_ips = get_ips(google_cn_host)
-    google_hk_ips = get_ips(google_hk_host)
+    google_cn_ips = get_g_ips(google_cn_host)
 
-    def get_g_opener(loc = 'cn'):
+    def get_g_opener():
         '''返回一个使用google_cn或者google_hk作为代理的urllib2 opener'''
 
         proxy_handler = urllib2.ProxyHandler(
-            # 从google_cn_ips 或者 google_hk_ips 随机选择一个IP出来
-            {'http': random.choice( (google_cn_ips if loc == 'cn' else google_hk_ips) )}
+            # 从google_cn_ips中随机选择一个IP出来
+            {'http': random.choice( google_cn_ips )}
             )
         g_opener = urllib2.build_opener(proxy_handler)
         return g_opener
