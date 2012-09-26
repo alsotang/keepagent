@@ -49,7 +49,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 res = urllib2.urlopen(gaeServer, lib.dumpDict(payload), lib.deadlineRetry[i])
             except (urllib2.URLError, socket.timeout) as e: 
                 # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
-                urllib2.install_opener( get_g_opener() ) # TODO: hk or cn, http or https
                 logging.error(e)
                 continue
 
@@ -60,6 +59,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 res_headers = json.loads(result.headers)
                 res_content = lib.atob(result.content)
                 break
+        else:
+            urllib2.install_opener( get_g_opener() ) # TODO: hk or cn, http or https
 
         # 返回数据给浏览器的过程
         try:
