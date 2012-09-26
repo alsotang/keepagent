@@ -10,10 +10,43 @@ import json
 import urllib2
 import socket
 import ssl
+import random
 
 import lib
 import config
-from certutil import CertUtil
+import certutil
+
+# 初始化并返回一个 get_g_opener 闭包函数，调用该函数会随机返回一个google的ip
+def init_g_opener():
+
+    # 得到google.cn的ip集合: `googlecn_ips`
+    google_cn_host = 'g.cn'
+
+    def get_g_ips(host):
+        '''由域名得到相应的ip列表'''
+
+        results = socket.getaddrinfo(host, None)
+        ips = set() # 不要重复的ip
+        for i in results:
+            ip = i[4][0]
+            if ':' not in ip:
+                ips.add(ip)
+        ips = list(ips)
+        return ips
+
+    google_cn_ips = get_g_ips(google_cn_host)
+
+    def get_g_opener():
+        '''返回一个使用google_cn或者google_hk作为代理的urllib2 opener'''
+
+        proxy_handler = urllib2.ProxyHandler(
+            # 从google_cn_ips中随机选择一个IP出来
+            {'http': random.choice( google_cn_ips )}
+            )
+        g_opener = urllib2.build_opener(proxy_handler)
+        return g_opener
+
+    return get_g_opener
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -86,7 +119,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self.connection.sendall('%s 200 Connection established\r\n\r\n' % self.protocol_version)
 
-        hostCert, hostKey = CertUtil.getCertificate(host)
+        hostCert, hostKey = certutil.getCertificate(host)
 
         self._realpath = self.path
 
@@ -127,7 +160,7 @@ def init_info():
         '#' * 50
         )
 
-get_g_opener = lib.init_g_opener()
+get_g_opener = init_g_opener()
 
 gaeServer = ('http://%s.appspot.com/' % config.appid)
 urllib2.install_opener( get_g_opener() )
@@ -136,7 +169,7 @@ urllib2.install_opener( get_g_opener() )
 def main():
     print init_info() 
     
-    CertUtil.init()
+    certutil.init()
 
     server_address = ('', config.listen_port)
     httpd = LocalProxyServer(server_address, LocalProxyHandler)
