@@ -26,6 +26,11 @@ CERT_SUBJECTS.L = 'SiChuan Univ.'
 CERT_SUBJECTS.OU = 'KeepAgent Branch'
 
 
+CA_SUBJECTS = crypto.X509Name(CERT_SUBJECTS)
+CA_SUBJECTS.OU = 'KeepAgent Root'
+CA_SUBJECTS.O = 'KeepAgent'
+CA_SUBJECTS.CN = 'KeepAgent CA'
+
 def readBinFile(filename):
     with open(filename, 'rb') as f:
         content = f.read()
@@ -99,32 +104,28 @@ def init():
     global CA
     CA = (loadPEM(cacert, 0), loadPEM(cakey, 1))
 
+def makeCA():
+    '''得到一对新的CA.crt与CA.key'''
+
+    cert = crypto.X509()
+    cert.set_version(0)
+    cert.set_serial_number(0)
+    cert.gmtime_adj_notBefore(0)
+    cert.gmtime_adj_notAfter(EXPIRE_DELAY)
+    cert.set_issuer(CA_SUBJECTS)
+    cert.set_subject(CA_SUBJECTS)
+
+    pubkey = createPKey()
+    cert.set_pubkey(pubkey)
+    cert.sign(pubkey, 'sha1')
+    return (dumpPEM(cert, 0), dumpPEM(pubkey, 1))
+
 if __name__ == '__main__':
     # 不要随便运行这段代码，运行后将生成新的CA相关文件，需要把浏览器中的CA文件删除后
     # 重新导入新生成的。
-    CASubjects = crypto.X509Name(CERT_SUBJECTS)
-    CASubjects.OU = 'KeepAgent Root'
-    CASubjects.O = 'KeepAgent'
-    CASubjects.CN = 'KeepAgent CA'
-
-
-    def makeCA():
-        '''得到一对新的CA.crt与CA.key'''
-
-        cert = crypto.X509()
-        cert.set_version(0)
-        cert.set_serial_number(0)
-        cert.gmtime_adj_notBefore(0)
-        cert.gmtime_adj_notAfter(EXPIRE_DELAY)
-        cert.set_issuer(CASubjects)
-        cert.set_subject(CASubjects)
-
-        pubkey = createPKey()
-        cert.set_pubkey(pubkey)
-        cert.sign(pubkey, 'sha1')
-        return (dumpPEM(cert, 0), dumpPEM(pubkey, 1))
 
     for f in os.listdir('certs'):
+        if f.endswith('.md'): continue
         os.remove( os.path.join('certs', f))
 
     certFile = os.path.join(lib.basedir, 'CA.crt')
