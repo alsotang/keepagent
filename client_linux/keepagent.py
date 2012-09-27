@@ -180,7 +180,7 @@ def main():
     httpd = LocalProxyServer(server_address, LocalProxyHandler)
 
     print '获取更新信息当中...'
-    print urllib2.urlopen(gaeServer + 'getupdate').read()
+    print '~~%s~~' % urllib2.urlopen(gaeServer + 'getupdate').read()
     print 'server is running...'
     httpd.serve_forever()
 
