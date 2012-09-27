@@ -58,4 +58,15 @@ class MainPage(webapp2.RequestHandler):
         
         self.response.write(result)
 
-app = webapp2.WSGIApplication([('/.*', MainPage)])
+
+
+
+class UpdatePage(webapp2.RequestHandler):
+    def get(self):
+        text = urlfetch.fetch(url='https://raw.github.com/alsotang/keepagent/master/update_message').content
+
+        self.response.headers['Content-Type'] = 'text/html; charset=UTF-8'
+        self.response.write(text)
+
+app = webapp2.WSGIApplication([(r'/getupdate', UpdatePage),
+                               (r'/.*', MainPage)])

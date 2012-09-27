@@ -1,8 +1,6 @@
 #! /usr/bin/env python
 # coding=utf-8
 
-# to alsotang: git commit时记得修改crypt_key和version
-
 import base64
 import json
 import zlib
