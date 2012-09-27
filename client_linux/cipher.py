@@ -15,12 +15,12 @@ def init(key):
 
 
 def pad(data):
-    patlen = BLOCK_SIZE - len(data) % BLOCK_SIZE
-    return data + (patlen - 1) * ' ' + chr(patlen)
+    padlen = BLOCK_SIZE - len(data) % BLOCK_SIZE
+    return data + (padlen - 1) * ' ' + chr(padlen)
 
 def unpad(data):
-    patlen = ord(data[-1])
-    return data[:-patlen]
+    padlen = ord(data[-1])
+    return data[:-padlen]
 
 def encrypt(data):
     return cipher.encrypt(pad(data))

@@ -19,13 +19,14 @@ CA = None
 CALock = threading.Lock()
 EXPIRE_DELAY = 60*60*24*365*10 # 10 years
 
+# 网站证书的subjects
 CERT_SUBJECTS = crypto.X509Name(crypto.X509().get_subject())
 CERT_SUBJECTS.C = 'CN'
 CERT_SUBJECTS.ST = 'SiChuan'
 CERT_SUBJECTS.L = 'SiChuan Univ.'
 CERT_SUBJECTS.OU = 'KeepAgent Branch'
 
-
+# CA证书的subjects
 CA_SUBJECTS = crypto.X509Name(CERT_SUBJECTS)
 CA_SUBJECTS.OU = 'KeepAgent Root'
 CA_SUBJECTS.O = 'KeepAgent'
