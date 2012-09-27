@@ -59,7 +59,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # headers is a dict-like object, it doesn't have `iteritems` method, so convert it to `dict`
         req_headers = dict(self.headers)  # dict
         req_headers = dict((h, v) for h, v in req_headers.iteritems() if h.lower() not in self.forbidden_headers)
-        req_headers['connection'] = 'close'
 
         req_body_len = int(req_headers.get('content-length', 0))
         req_body = self.rfile.read(req_body_len) # bin or str
@@ -71,29 +70,35 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             'payload': lib.btoa(req_body), # str
         }
 
-        # 初始化response的3个主要信息
-        res_status_code = 500
-        res_headers = {}
-        res_content = ''
+        #导出并压缩payload
+        payload = lib.dumpDict(payload)
+
+        #判断是否需要加密
+        if self.path.startswith('https'):
+            payload = lib.encrypt(payload)
+        else:
+            payload = '0' + payload
 
         # 向GAE获取的过程
-        for i in range(3):
+        for i in range(4):
             try:
-                res = urllib2.urlopen(gaeServer, lib.dumpDict(payload), lib.deadlineRetry[i])
+                res = urllib2.urlopen(gaeServer, payload, lib.deadlineRetry[i])
             except (urllib2.URLError, socket.timeout) as e: 
-                # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
                 logging.error(e)
                 continue
 
             if res.code == 200:  # 如果打开GAE没发生错误
-                result = lib.loadDict( res.read() )
+                result = res.read()
+                result = lib.decrypt(result)
+                result = lib.loadDict( result )
 
                 res_status_code = result.status_code
                 res_headers = json.loads(result.headers)
                 res_content = lib.atob(result.content)
                 break
         else:
-            urllib2.install_opener( get_g_opener() ) # TODO: hk or cn, http or https
+            # 如果urllib2打开GAE都出错的话，就换个g_opener吧。
+            urllib2.install_opener( get_g_opener() ) 
 
         # 返回数据给浏览器的过程
         try:

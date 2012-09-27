@@ -18,11 +18,15 @@ class MainPage(webapp2.RequestHandler):
         self.response.write(text)
     
     def post(self):
-        req_body = lib.loadDict(self.request.body)
+        #记录一个是否加密的状态变量
+        is_crypted = int(self.request.body[0])
+
+        req_body = lib.decrypt(self.request.body)
+        req_body = lib.loadDict(req_body)
 
         method = getattr(urlfetch, req_body.command)
 
-        # 如超时则自动重试3次，3次失败后，GAE会抛错并返回给client 500错误。
+        # 如超时则自动重试4次，4次失败后，GAE会抛错并返回给client 500错误。
         for dl in lib.deadlineRetry:
             try:
                 res = urlfetch.fetch(url=req_body.path,
@@ -46,6 +50,11 @@ class MainPage(webapp2.RequestHandler):
         }
 
         result = lib.dumpDict(result)
+
+        if is_crypted:
+            result = lib.encrypt(result)
+        else:
+            result = '0' + result
         
         self.response.write(result)
 
