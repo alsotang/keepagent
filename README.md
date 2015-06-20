@@ -1,6 +1,8 @@
 KeepAgent
 =
 
+**THIS PROJECT IS DEPRECATED**
+
 [GoAgent](https://github.com/goagent/goagent)'s code is dirty and messy, so let's KeepAgent.
 
 KeepAgent只专注GAE平台以及HTTP代理，希望以简洁而不失效率的代码，让初学HTTP协议或是对于Python有兴趣的同学可以从中借鉴和学习。
